@@ -1,0 +1,16 @@
+version: "2"
+services:
+  dns:
+    stdin_open: true
+    tty: true
+    restart: "always"
+    build:
+      context: "."
+      dockerfile: "docker/dev.dockerfile"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - ".:/app"
+    environment:
+      DOCKER_DNS_TLD: "dev"
+    ports:
+      - "53"

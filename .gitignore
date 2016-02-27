@@ -1,0 +1,7 @@
+*.log
+node_modules
+/build
+.env
+.idea
+/coverage
+.DS_Store
