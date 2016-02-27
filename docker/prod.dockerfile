@@ -7,6 +7,8 @@ WORKDIR /app
 EXPOSE 53
 
 COPY . .
-RUN npm install --silent
+RUN npm install --silent \
+    && npm run gulp build \
+    && npm prune --production
 
 CMD npm start

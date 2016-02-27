@@ -11,6 +11,6 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock"
       - ".:/app"
     environment:
-      DOCKER_DNS_TLD: "dev"
+      DOCKER_DNS_TLD: "local"
     ports:
       - "53"
