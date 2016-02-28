@@ -1,9 +1,10 @@
 import co from 'co';
 import {createDockerEventsManager} from './docker_events_manager';
 
-const onConnect = co.wrap(function* onConnect(event, dnsServer, dockerClient, tld, cache) {
+const onConnect = co.wrap(function* onConnect(event, next, dnsServer, dockerClient, tld, cache) {
     const containerId = event.Actor.Attributes.container;
     const networkName = event.Actor.Attributes.name;
+    const networkId = event.Actor.ID;
     const containerInfo = yield dockerClient.inspect(containerId);
     const containerName = containerInfo.Name.substring(1);
     const networkInfo = containerInfo.NetworkSettings.Networks[networkName];
@@ -15,51 +16,52 @@ const onConnect = co.wrap(function* onConnect(event, dnsServer, dockerClient, tl
         cache.set(containerId, new Map());
     }
 
-    cache.get(containerId).set(networkName, {domain, ip});
+    cache.get(containerId).set(networkId, {domain, ip});
 
     console.log('Added ' + domain);
+    next();
 });
 
-const onDisconnect = co.wrap(function* onDisconnect(event, dnsServer, dockerClient, tld, cache) {
+const onDisconnect = co.wrap(function* onDisconnect(event, next, dnsServer, dockerClient, tld, cache) {
     const containerId = event.Actor.Attributes.container;
-    const networkName = event.Actor.Attributes.name;
+    const networkId = event.Actor.ID;
 
-    console.log(networkName);
-
-    if (!cache.has(containerId) || !cache.get(containerId).has(networkName)) {
+    if (!cache.has(containerId) || !cache.get(containerId).has(networkId)) {
+        next();
         return;
     }
 
-    const containerInfo = yield dockerClient.inspect(containerId);
-    const containerName = containerInfo.Name.substring(1);
-    const domain = `${containerName}.${networkName}.${tld}`;
-    const ip = cache.get(containerId).get(networkName).ip;
+    const {domain, ip} = cache.get(containerId).get(networkId);
 
-    console.log('test 1', ip);
     yield dnsServer.removeRecord(ip, domain);
 
-    cache.get(containerId).delete(networkName);
+    cache.get(containerId).delete(networkId);
     if (cache.get(containerId).size === 0) {
         cache.delete(containerId);
     }
 
     console.log('Removed ' + domain);
+    next();
 });
 
-const onRename = co.wrap(function* onRename(event, dnsServer, dockerClient, tld, cache) {
+const onRename = co.wrap(function* onRename(event, next, dnsServer, dockerClient, tld, cache) {
     const containerName = event.Actor.Attributes.name;
     const containerInfo = yield dockerClient.inspect(containerName);
     const containerId = containerInfo.Id;
 
     // TODO: Do this in a batch
-    for (const [networkName, {domain: oldDomain, ip}] of cache.get(containerId).entries()) {
+    for (const [networkId, {domain: oldDomain, ip}] of cache.get(containerId).entries()) {
+        const network = yield dockerClient.networkById(networkId);
+        const networkName = network.Name;
         const domain = `${containerName}.${networkName}.${tld}`;
         yield dnsServer.removeRecord(ip, oldDomain);
         yield dnsServer.addRecord(ip, domain);
-        cache.get(containerId).get(networkName).domain = domain;
+        cache.get(containerId).get(networkId).domain = domain;
 
         console.log('Renamed ' + oldDomain + ' to ' + domain);
     }
+
+    next();
 });
 
 class DockerHostsUpdater {
@@ -68,11 +70,11 @@ class DockerHostsUpdater {
             dockerClient,
             callbacks: {
                 network: {
-                    connect: (event) => onConnect(event, dnsServer, dockerClient, tld, cache),
-                    disconnect: (event) => onDisconnect(event, dnsServer, dockerClient, tld, cache)
+                    connect: (event, next) => onConnect(event, next, dnsServer, dockerClient, tld, cache),
+                    disconnect: (event, next) => onDisconnect(event, next, dnsServer, dockerClient, tld, cache)
                 },
                 container: {
-                    rename: (event) => onRename(event, dnsServer, dockerClient, tld, cache)
+                    rename: (event, next) => onRename(event, next, dnsServer, dockerClient, tld, cache)
                 }
             }
         });
@@ -95,13 +97,15 @@ export const createDockerHostsUpdater = co.wrap(function* createDockerHostsUpdat
             const networkInfo = container.NetworkSettings.Networks[networkName];
             const domain = `${containerName}.${networkName}.${tld}`;
             const ip = networkInfo.IPAddress;
+            const network = yield dockerClient.networkByName(networkName);
+            const networkId = network.Id;
 
             yield dnsServer.addRecord(ip, domain);
             if (!cache.has(containerId)) {
                 cache.set(containerId, new Map());
             }
 
-            cache.get(containerId).set(networkName, {domain, ip});
+            cache.get(containerId).set(networkId, {domain, ip});
 
             console.log('Added ' + domain);
         }

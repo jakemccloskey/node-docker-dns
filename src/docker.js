@@ -43,6 +43,36 @@ class DockerClient {
             });
         });
     }
+
+    networkByName(name) {
+        return new Promise((resolve, reject) => {
+            this._inner.listNetworks((err, data) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    const networks = data.filter((network) => {
+                        return network.Name === name;
+                    });
+
+                    resolve(networks[0]);
+                }
+            });
+        });
+    }
+
+    networkById(id) {
+        return new Promise((resolve, reject) => {
+            this._inner.listNetworks({
+                filters: {id}
+            }, (err, data) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(data);
+                }
+            });
+        });
+    }
 }
 
 export function createDockerClient(options) {

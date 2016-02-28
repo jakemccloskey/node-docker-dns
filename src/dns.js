@@ -31,7 +31,7 @@ function writeFile(file, data, options) {
     });
 }
 
-const dumpConfig = co.wrap(function* dumpConfig(records, test) {
+const dumpConfig = co.wrap(function* dumpConfig(records) {
     let config = '';
 
     for (const [ip, domains] of records.entries()) {
@@ -44,12 +44,9 @@ const dumpConfig = co.wrap(function* dumpConfig(records, test) {
         config += '\n';
     }
 
-    console.log('test 4', test);
     yield writeFile(hostsFile, config);
 
-    console.log('test 5', test);
     process.kill(yield generatePid(), 'SIGHUP');
-    console.log('test 6', test);
 });
 
 const addRecord = co.wrap(function* addRecord(records, ip, domain) {
@@ -72,8 +69,7 @@ const removeRecord = co.wrap(function* removeRecord(records, ip, domain) {
         records.delete(ip);
     }
 
-    console.log('test 3', ip);
-    yield dumpConfig(records, ip);
+    yield dumpConfig(records);
 });
 
 class DnsServer {
@@ -86,7 +82,6 @@ class DnsServer {
     }
 
     removeRecord(ip, domain) {
-        console.log('test 2', ip);
         return removeRecord(this._records, ip, domain);
     }
 }
