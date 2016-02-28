@@ -10,6 +10,15 @@ co.wrap(function* init() {
         dnsServer.listen(co.wrap(function* () {
             console.log('Server started');
 
+            dnsServer.persistence.create_forwarder('8.8.8.8', {timeout: 500, port: 53}, (err) => {
+                if (err) {
+                    console.error(err);
+                    return;
+                }
+
+                console.log('Forwarding to 8.8.8.8');
+            });
+
             // TODO: Support container renames
             const eventStream = yield dockerClient.events({
                 type: ['network', 'container'],

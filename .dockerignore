@@ -1,7 +1,6 @@
 .git
 .gitignore
-README.md
-docker-compose.yml
 build
+coverage
 node_modules
-docker
+README.md

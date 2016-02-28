@@ -54,6 +54,7 @@ gulp.task('pre-test', () => {
 
 gulp.task('test-inner', () => {
     return gulp.src('test/**/*.js')
+    .pipe(babel())
     .pipe(mocha({
         reporter: 'list'
     }))

@@ -1,9 +1,8 @@
-FROM node:4.3.1
+FROM node:4.3.1-slim
 
-# Setup working directory.
-RUN mkdir /app
-WORKDIR /app
+RUN mkdir -p /opt/app
+WORKDIR /opt/app
 
-EXPOSE 53
+EXPOSE 53/udp
 
-CMD npm install --silent && npm run gulp watch
+CMD ["npm", "install", "--silent", "&&", "npm", "start"]

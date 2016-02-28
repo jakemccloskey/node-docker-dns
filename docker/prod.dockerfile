@@ -1,14 +1,18 @@
-FROM node:4.3.1
+FROM node:4.3.1-slim
 
-# Setup working directory.
-RUN mkdir /app
-WORKDIR /app
+RUN mkdir -p /opt/app
+WORKDIR /opt/app
 
-EXPOSE 53
+COPY package.json /tmp/package.json
+COPY npm-shrinkwrap.json /tmp/npm-shrinkwrap.json
+RUN cd /tmp && npm install --silent \
+    && cp -a /tmp/node_modules /opt/app/ \
+    && rm -rf /tmp/*
 
-COPY . .
-RUN npm install --silent \
-    && npm run gulp build \
-    && npm prune --production
+COPY . /opt/app
 
-CMD npm start
+RUN npm run gulp build && npm prune --production --silent
+
+EXPOSE 53/udp
+
+CMD ["npm", "start"]
